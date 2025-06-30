@@ -1,0 +1,52 @@
+# Protocolo SLOW - Implementação do Peripheral
+
+Este repositório contém a implementação do cliente "peripheral" para o protocolo de transporte SLOW, desenvolvido como parte do Trabalho Prático da disciplina Rede de Computadores. O protocolo SLOW adiciona funcionalidades de controle de fluxo, conexão e confiabilidade sobre o UDP.
+
+## Integrantes
+
+- **Isabela Beatriz Sousa Nunes Farias** - NUSP: 13823833
+- **Guilherme Antonio Costa Bandeira** - NUSP: 14575620
+- **Tiago chaves bezerra rocha** - NUSP: 14609637
+
+## Estrutura do Código
+
+O projeto está organizado nos seguintes arquivos:
+
+- `peripheral.cpp`: Contém a lógica principal da aplicação, o tratamento de argumentos de linha de comando e a orquestração dos fluxos de conexão (`run_connect` e `run_revive`).
+- `session.hpp`: O coração do projeto. Esta classe encapsula todo o estado e a lógica de uma sessão SLOW, incluindo gerenciamento de janelas deslizantes, filas de transmissão, retransmissão e fragmentação.
+- `slow_packet.hpp`: Define a estrutura do pacote SLOW, incluindo o cabeçalho e a serialização dos dados.
+- `Makefile`: Facilita a compilação do projeto.
+
+## Como Compilar e Executar
+
+### Compilação
+
+Para compilar o projeto, basta executar o comando `make` no terminal. Será gerado um executável chamado `slowclient`.
+
+### Exemplos de Utilização
+
+**Fluxo 1: Conexão, Envio de Dados e Desconexão**
+Este comando estabelece uma nova conexão, envia o conteúdo de mensagem.txt, e salva o estado da sessão no arquivo sess.bin para um futuro revive.
+
+# Garante que não há um estado de sessão antigo
+
+rm -f sess.bin
+
+# Cria um arquivo de mensagem
+
+echo "Teste de conexão inicial." > mensagem.txt
+
+# Executa o cliente
+
+./slowclient --msg mensagem.txt --save sess.bin
+
+**Fluxo 2: Tentativa de Reativação (Revive)**
+Este comando utiliza o estado salvo em sess.bin para reativar a conexão anterior e enviar uma nova mensagem.
+
+# Cria uma nova mensagem para a sessão reativada
+
+echo "Mensagem enviada após o revive." > revive_msg.txt
+
+# Executa o cliente em modo revive
+
+./slowclient --revive sess.bin --msg revive_msg.txt
