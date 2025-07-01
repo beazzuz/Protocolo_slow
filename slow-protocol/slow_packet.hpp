@@ -1,19 +1,23 @@
 #pragma once
 //
 //  slow_packet.hpp  –  Estruturas e utilidades do protocolo SLOW
-//
-#include <array>
-#include <cctype>
-#include <cstdint>
-#include <cstring>
-#include <iomanip>
-#include <iostream>
-#include <stdexcept>
-#include <vector>
+// Este arquivo define as estruturas de dados fundamentais e utilidades
+// para o protocolo de rede SLOW, incluindo a definição de pacotes e
+// a lógica para serialização/desserialização.
+#include <array>     // Para std::array, usado no UUID.
+#include <cctype>    // Para std::isprint, usado na impressão de dados.
+#include <cstdint>   // Para tipos inteiros de largura fixa (uint8_t, uint16_t, uint32_t).
+#include <cstring>   // Para std::memcpy, usado na desserialização.
+#include <iomanip>   // Para std::setw e std::setfill, usados na formatação de saída.
+#include <iostream>  // Para std::ostream, usado na impressão.
+#include <stdexcept> // Para std::runtime_error, usado em validações.
+#include <vector>    // Para std::vector, usado para o payload do pacote.
 
 namespace slow {
 
 // ───────────────────── UUID v8 (wrapper simples) ─────────────────────
+// Estrutura para representar um UUID (Universally Unique Identifier).
+// É um identificador de 16 bytes, usado para identificar sessões
 struct UUID {
     std::array<uint8_t, 16> bytes{};
 
@@ -31,6 +35,8 @@ struct UUID {
 };
 
 // ─────────────────────────── Flags ───────────────────────────
+// Enumeração anônima para definir as flags do cabeçalho do protocolo SLOW.
+// Cada flag é um bit específico dentro de um byte.
 enum : uint8_t {
     FLAG_CONNECT   = 1u << 4,  // C
     FLAG_REVIVE    = 1u << 3,  // R
@@ -40,6 +46,8 @@ enum : uint8_t {
 };
 
 // ────────────────────────── Packet ──────────────────────────
+// Estrutura que representa um pacote do protocolo SLOW.
+// Contém o cabeçalho e o payload (dados).
 struct Packet {
     UUID      sid;
     uint32_t  sttl   = 0;  // 27 bits
@@ -52,6 +60,7 @@ struct Packet {
     std::vector<uint8_t> data;  // ≤ 1440 B
 
     // ───── serialização ─────────────────────────────────────
+     // Converte a estrutura Packet em um vetor de bytes para transmissão pela rede.
     std::vector<uint8_t> serialize() const {
         if (data.size() > 1440)
             throw std::runtime_error("payload > 1440 bytes");
@@ -62,7 +71,8 @@ struct Packet {
         // sid
         v.insert(v.end(), sid.bytes.begin(), sid.bytes.end());
 
-        // flags|sttl (little-endian)
+        // flags|sttl (little-endian): Combina o STTL (27 bits) e as flags (5 bits) em um uint32_t.
+        // O STTL é deslocado 5 bits para a esquerda para dar espaço às flags nos bits menos significativos.
         uint32_t flags_sttl = ((sttl & 0x07FFFFFFu) << 5) | (flags & 0x1Fu);
         append32le(v, flags_sttl);
 
@@ -77,6 +87,7 @@ struct Packet {
     }
 
     // ───── desserialização ──────────────────────────────────
+     // Converte um array de bytes recebido da rede de volta para a estrutura Packet.
     static Packet deserialize(const uint8_t* buf, size_t len) {
         constexpr size_t MIN = 16 + 4 + 4 + 4 + 2 + 1 + 1;
         if (len < MIN) throw std::runtime_error("pacote curto");
@@ -95,11 +106,13 @@ struct Packet {
         p.fid    = buf[off++];
         p.fo     = buf[off++];
 
+         // Copia os dados restantes do buffer para o payload do pacote.
         p.data.assign(buf + off, buf + len);
-        return p;
+        return p; // Retorna o Packet desserializado.
     }
 
 private:
+ // Funções auxiliares para adicionar inteiros em formato little-endian a um vetor de bytes.
     static void append16le(std::vector<uint8_t>& v, uint16_t x) {
         v.push_back(static_cast<uint8_t>(x));
         v.push_back(static_cast<uint8_t>(x >> 8));
@@ -123,14 +136,15 @@ private:
 };
 
 // ─────────── pretty-print para std::ostream ───────────
+// Sobrecarga do operador << para permitir a impressão fácil de um objeto Packet.
 inline std::ostream& operator<<(std::ostream& os, const Packet& p)
 {
     auto f = os.flags();
     os << std::hex << std::setfill('0');
-
+// Imprime o SID.
     // sid
     os << "sid      : "; p.sid.print(os); os << '\n';
-
+// Imprime as flags em hexadecimal e, em seguida, os valores binários de cada flag.
     // flags
     os << "flags    : 0x" << std::setw(2) << static_cast<int>(p.flags)
        << "  (C="  << ((p.flags & FLAG_CONNECT  ) ? '1' : '0')
@@ -157,7 +171,7 @@ inline std::ostream& operator<<(std::ostream& os, const Packet& p)
         os << '"';
     }
     os << '\n';
-    os.flags(f);
+    os.flags(f); // Restaura as flags de formatação.
     return os;
 }
 
